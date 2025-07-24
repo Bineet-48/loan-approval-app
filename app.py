@@ -42,7 +42,7 @@ with st.sidebar.form("input_form"):
     submitted = st.form_submit_button("🔮 Predict Loan Approval")
 
 # --- Prediction Logic ---
-if submitted:
+if st.button("🚀 Predict Loan Approval"):
     input_dict = {
         'person_age': [person_age],
         'person_income': [person_income],
