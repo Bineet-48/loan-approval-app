@@ -1,38 +1,48 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import joblib
 
-# Load trained model
+# Load the trained model
 model = joblib.load("loan_model_compressed.pkl")
 expected_columns = list(model.feature_names_in_)
 
-st.set_page_config(page_title="Loan Approval Predictor", layout="centered")
+# --- Page config ---
+st.set_page_config(page_title="Loan Approval Predictor", page_icon="💰")
+
+# --- Title ---
 st.title("💰 Loan Approval Predictor")
 
-with st.expander("🔍 About This App", expanded=False):
+# --- About Section ---
+with st.expander("🔍 About This App"):
     st.write("""
-    This app predicts whether a loan application will be **approved or denied** based on applicant financial and personal details.
+    This Streamlit app uses a machine learning model to predict whether a loan application is likely to be approved or denied based on key applicant details.
+    
+    It is built using:
+    - 🧠 Scikit-learn (RandomForest model)
+    - 📦 Joblib for model loading
+    - 🎈 Streamlit for UI
     """)
 
-# Sidebar Inputs
-st.sidebar.header("📋 Applicant Information")
+# --- Sidebar Input Form ---
+with st.sidebar.form("input_form"):
+    st.markdown("### 📋 Enter Applicant Information")
 
-person_age = st.sidebar.number_input("Age", min_value=18, max_value=100, value=30)
-person_income = st.sidebar.number_input("Annual Income ($)", min_value=1000, value=50000)
-person_home_ownership = st.sidebar.selectbox("Home Ownership", ['RENT', 'MORTGAGE', 'OWN', 'OTHER'])
-person_emp_length = st.sidebar.slider("Employment Length (Years)", 0, 30, 5)
+    person_age = st.number_input("Age", min_value=18, max_value=100, value=30)
+    person_income = st.number_input("Annual Income ($)", min_value=1000, value=50000)
+    person_home_ownership = st.selectbox("Home Ownership", ['RENT', 'MORTGAGE', 'OWN', 'OTHER'])
+    person_emp_length = st.slider("Employment Length (Years)", 0, 30, 5)
+    loan_intent = st.selectbox("Loan Purpose", ['PERSONAL', 'EDUCATION', 'MEDICAL', 'VENTURE', 'HOMEIMPROVEMENT', 'DEBTCONSOLIDATION'])
+    loan_grade = st.selectbox("Loan Grade", ['A', 'B', 'C', 'D', 'E', 'F', 'G'])
+    loan_amnt = st.number_input("Loan Amount ($)", min_value=1000, value=10000)
+    loan_int_rate = st.number_input("Interest Rate (%)", min_value=0.0, value=12.0)
+    loan_percent_income = st.number_input("Loan as % of Income", min_value=0.0, max_value=1.0, value=0.2)
+    cb_person_default_on_file = st.selectbox("Previous Default?", ['Y', 'N'])
+    cb_person_cred_hist_length = st.slider("Credit History Length (Years)", 1, 30, 5)
 
-loan_intent = st.sidebar.selectbox("Loan Purpose", ['PERSONAL', 'EDUCATION', 'MEDICAL', 'VENTURE', 'HOMEIMPROVEMENT', 'DEBTCONSOLIDATION'])
-loan_grade = st.sidebar.selectbox("Loan Grade", ['A', 'B', 'C', 'D', 'E', 'F', 'G'])
-loan_amnt = st.sidebar.number_input("Loan Amount ($)", min_value=1000, value=10000)
-loan_int_rate = st.sidebar.number_input("Interest Rate (%)", min_value=0.0, value=12.0)
-loan_percent_income = st.sidebar.number_input("Loan as % of Income", min_value=0.0, max_value=1.0, value=0.2)
+    submitted = st.form_submit_button("🔮 Predict Loan Approval")
 
-cb_person_default_on_file = st.sidebar.selectbox("Previous Default?", ['Y', 'N'])
-cb_person_cred_hist_length = st.sidebar.slider("Credit History Length (Years)", 1, 30, 5)
-
-if st.button("🚀 Predict Loan Approval"):
+# --- Prediction Logic ---
+if submitted:
     input_dict = {
         'person_age': [person_age],
         'person_income': [person_income],
@@ -64,17 +74,19 @@ if st.button("🚀 Predict Loan Approval"):
 
     input_df = pd.DataFrame(input_dict)
 
-    # Add any missing columns
+    # Add missing columns
     for col in expected_columns:
         if col not in input_df.columns:
             input_df[col] = 0
+
+    # Reorder columns
     input_df = input_df[expected_columns]
 
-    with st.spinner("Making prediction..."):
-        prediction = model.predict(input_df)[0]
-        proba = model.predict_proba(input_df)[0][1]
+    # Predict
+    prediction = model.predict(input_df)[0]
+    proba = model.predict_proba(input_df)[0][1]
 
+    # Result
     result = "✅ **Loan Approved**" if prediction == 1 else "❌ **Loan Denied**"
-    st.success(result)
-    st.progress(int(proba * 100))
+    st.subheader(result)
     st.write(f"**Confidence Score:** {proba:.2%}")
