@@ -60,7 +60,7 @@ with st.sidebar.form("input_form"):
     cb_person_default_on_file = st.selectbox("Previous Default?", ['Y', 'N'])
     cb_person_cred_hist_length = st.slider("Credit History Length (Years)", 1, 30, 5)
 
-    
+    submitted = st.form_submit_button("🔮 Predict Loan Approval")
 
 # -----------------------
 # Prediction Logic
