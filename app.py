@@ -1,29 +1,50 @@
 import streamlit as st
 import pandas as pd
 import joblib
+from fpdf import FPDF
+import base64
 
+# -----------------------
 # Load the trained model
+# -----------------------
 model = joblib.load("loan_model_compressed.pkl")
 expected_columns = list(model.feature_names_in_)
 
-# --- Page config ---
+# -----------------------
+# Page Configuration
+# -----------------------
 st.set_page_config(page_title="Loan Approval Predictor", page_icon="💰")
 
-# --- Title ---
+# -----------------------
+# Theme Toggle
+# -----------------------
+theme = st.sidebar.radio("🌗 Select Theme", ["Light", "Dark"])
+if theme == "Dark":
+    st.markdown("""
+        <style>
+            body { background-color: #0E1117; color: white; }
+            .stApp { background-color: #0E1117; color: white; }
+        </style>
+    """, unsafe_allow_html=True)
+
+# -----------------------
+# Title and About
+# -----------------------
 st.title("💰 Loan Approval Predictor")
 
-# --- About Section ---
 with st.expander("🔍 About This App"):
     st.write("""
     This Streamlit app uses a machine learning model to predict whether a loan application is likely to be approved or denied based on key applicant details.
     
     It is built using:
-    - 🧠 Scikit-learn (RandomForest model)
+    - 🧠 Scikit-learn (RandomForest)
     - 📦 Joblib for model loading
     - 🎈 Streamlit for UI
     """)
 
-# --- Sidebar Input Form ---
+# -----------------------
+# Sidebar Form
+# -----------------------
 with st.sidebar.form("input_form"):
     st.markdown("### 📋 Enter Applicant Information")
 
@@ -41,7 +62,9 @@ with st.sidebar.form("input_form"):
 
     submitted = st.form_submit_button("🔮 Predict Loan Approval")
 
-# --- Prediction Logic ---
+# -----------------------
+# Prediction Logic
+# -----------------------
 if st.button("🚀 Predict Loan Approval"):
     input_dict = {
         'person_age': [person_age],
@@ -74,7 +97,7 @@ if st.button("🚀 Predict Loan Approval"):
 
     input_df = pd.DataFrame(input_dict)
 
-    # Add missing columns
+    # Add any missing columns (in case of model training mismatches)
     for col in expected_columns:
         if col not in input_df.columns:
             input_df[col] = 0
@@ -87,6 +110,30 @@ if st.button("🚀 Predict Loan Approval"):
     proba = model.predict_proba(input_df)[0][1]
 
     # Result
-    result = "✅ **Loan Approved**" if prediction == 1 else "❌ **Loan Denied**"
-    st.subheader(result)
+    result_label = "✅ **Loan Approved**" if prediction == 1 else "❌ **Loan Denied**"
+    st.subheader(result_label)
     st.write(f"**Confidence Score:** {proba:.2%}")
+
+    # -----------------------
+    # PDF Report Generation
+    # -----------------------
+    def create_pdf(result: str, score: float) -> str:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=14)
+        pdf.cell(200, 10, txt="Loan Prediction Report", ln=True, align='C')
+        pdf.ln(10)
+        pdf.cell(200, 10, txt=f"Result: {result}", ln=True)
+        pdf.cell(200, 10, txt=f"Confidence Score: {score:.2%}", ln=True)
+        filename = "loan_report.pdf"
+        pdf.output(filename)
+        return filename
+
+    def download_pdf_button(file_path: str):
+        with open(file_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode("utf-8")
+        href = f'<a href="data:application/octet-stream;base64,{base64_pdf}" download="Loan_Report.pdf">📄 Download Report as PDF</a>'
+        st.markdown(href, unsafe_allow_html=True)
+
+    pdf_file = create_pdf("Loan Approved" if prediction == 1 else "Loan Denied", proba)
+    download_pdf_button(pdf_file)
